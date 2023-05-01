@@ -32,7 +32,7 @@ function StockPrices() {
 
   return (
     <div>
-      <h1>Historical Stock Prices for TSLA</h1>
+      <h1>Historical Stock Prices for {symbol}</h1>
       <table>
         <thead>
           <tr>
