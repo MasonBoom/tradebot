@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { Chart, registerables } from 'chart.js';
+import './stockPricesStyles.css';
 
-const apiKey = process.env; 
+const apiKey = process.env
 const symbol = 'TSLA'; // symbol for Tesla Inc.
 
 function StockPrices() {
   const [prices, setPrices] = useState([]);
+  const [chartInitialized, setChartInitialized] = useState(false);
+  const chartRef = useRef(null);
 
   useEffect(() => {
     // fetch daily adjusted stock prices for TSLA for the past year
@@ -14,7 +18,7 @@ function StockPrices() {
         // extract the data from the response object
         const data = response.data['Time Series (Daily)'];
 
-        // loop through each day's data and extract the closing price
+        // convert data to an array of objects
         const prices = [];
         for (const date in data) {
           prices.push({
@@ -30,25 +34,38 @@ function StockPrices() {
       });
   }, []);
 
+  useEffect(() => {
+    // create a line chart using Chart.js
+    Chart.register(...registerables);
+    const ctx = chartRef.current.getContext('2d');
+    if (!chartInitialized && prices.length > 0) {
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: prices.map(price => price.date),
+          datasets: [{
+            label: 'Closing Price',
+            data: prices.map(price => price.price),
+            borderColor: 'blue',
+            fill: false
+          }]
+        },
+        plugins: {
+          // options for plugins, such as tooltips and legends
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+      setChartInitialized(true);
+    }
+  }, [prices, chartInitialized]);
+
   return (
     <div>
       <h1>Historical Stock Prices for {symbol}</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Closing Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {prices.map(price => (
-            <tr key={price.date}>
-              <td>{price.date}</td>
-              <td>{price.price}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <canvas id="chart" ref={chartRef} />
     </div>
   );
 }
