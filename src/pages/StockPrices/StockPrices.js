@@ -27,7 +27,7 @@ function StockPrices() {
           });
         }
 
-        setPrices(prices);
+        setPrices(prices.reverse());
       })
       .catch(error => {
         console.error(error);
