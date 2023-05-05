@@ -4,7 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import './stockPricesStyles.css';
 
 const apiKey = process.env
-const symbol = 'TSLA'; // symbol for Tesla Inc.
+const symbol = 'SPY'; // symbol for S&P 500 Inc.
 
 function StockPrices() {
   const [prices, setPrices] = useState([]);
