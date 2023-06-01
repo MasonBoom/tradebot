@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
-import './stockPricesStyles.css';
 
-const apiKey = process.env
+const apiKey = process.env.API_KEY; 
 const symbol = 'SPY'; // symbol for S&P 500 Inc.
 
 function StockPrices() {
@@ -27,7 +26,7 @@ function StockPrices() {
           });
         }
 
-        setPrices(prices.reverse());
+        setPrices(prices.reverse()); // reverse the order of the prices array
       })
       .catch(error => {
         console.error(error);
@@ -42,10 +41,10 @@ function StockPrices() {
       new Chart(ctx, {
         type: 'line',
         data: {
-          labels: prices.map(price => price.date),
+          labels: prices.map(price => price.date), // reverse the order of the labels
           datasets: [{
             label: 'Closing Price',
-            data: prices.map(price => price.price),
+            data: prices.map(price => price.price), // reverse the order of the data
             borderColor: 'blue',
             fill: false
           }]
@@ -62,10 +61,29 @@ function StockPrices() {
     }
   }, [prices, chartInitialized]);
 
+  // Make a basic prediction on whether the price will go up or down
+  const makePrediction = () => {
+    if (prices.length < 2) {
+      return 'Insufficient data';
+    }
+
+    const currentPrice = prices[prices.length - 1].price;
+    const previousPrice = prices[prices.length - 2].price;
+
+    if (currentPrice > previousPrice) {
+      return 'Price will go up';
+    } else {
+      return 'Price will go down';
+    }
+  };
+
   return (
-    <div>
+    <div className="main">
       <h1>Historical Stock Prices for {symbol}</h1>
-      <canvas id="chart" ref={chartRef} />
+      <div>
+        <canvas id="chart" ref={chartRef} style={{ height: '600px', width: '70%' }} />
+      </div>
+      <button onClick={makePrediction}>Make Prediction</button>
     </div>
   );
 }
