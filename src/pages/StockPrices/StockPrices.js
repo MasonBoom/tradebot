@@ -14,7 +14,6 @@ function StockPrices() {
   const chartRef = useRef(null);
 
   useEffect(() => {
-    // fetch daily adjusted stock prices for SPY for the past year
     axios
       .get(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=full&apikey=${apiKey}`)
       .then((response) => {
@@ -36,12 +35,12 @@ function StockPrices() {
           volume.push(volumeValue);
         }
 
-        const movingAveragePeriod = 20; // Define the period for the moving average
-        const rsiPeriod = 14; // Define the period for RSI calculation
-        const macdPeriod = 12; // Define the period for MACD calculation
-        const signalPeriod = 9; // Define the period for MACD signal calculation
-        const bollingerBandsPeriod = 20; // Define the period for Bollinger Bands calculation
-        const standardDeviations = 2; // Define the standard deviations for Bollinger Bands
+        const movingAveragePeriod = 20; 
+        const rsiPeriod = 14; 
+        const macdPeriod = 12; 
+        const signalPeriod = 9;
+        const bollingerBandsPeriod = 20; 
+        const standardDeviations = 2; 
 
         const sma = SMA.calculate({ period: movingAveragePeriod, values: closePrices });
         const rsi = RSI.calculate({ period: rsiPeriod, values: closePrices });
@@ -62,7 +61,6 @@ function StockPrices() {
 
         // Preprocess the data for input into the prediction model
         const processedData = preprocessData(pricesWithIndicators);
-
         setPrices(processedData.reverse());
       })
       .catch((error) => {
@@ -151,7 +149,6 @@ function StockPrices() {
     const predictions = model.predict(reshapedInput).dataSync();
 
     // Perform any further processing or rendering based on the predictions
-    // ...
 
     // Dispose of the tensors to free up memory
     inputTensor.dispose();
