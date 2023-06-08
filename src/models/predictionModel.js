@@ -25,9 +25,4 @@ const makePredictions = (model, XUnseen) => {
   return predictions;
 };
 
-export {
-  createModel,
-  trainModel,
-  evaluateModel,
-  makePredictions,
-};
+export { createModel, trainModel, evaluateModel, makePredictions };
