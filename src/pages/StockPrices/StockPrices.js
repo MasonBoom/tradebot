@@ -3,10 +3,12 @@ import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
 import * as tf from '@tensorflow/tfjs';
 import { SMA, RSI, MACD, BollingerBands } from 'technicalindicators';
-import { createModel, trainModel, evaluateModel, makePredictions } from '../../models/predictionModel'; 
+import { createModel, preprocessData, makePredictions, trainModel } from '../../models/predictionModel';
+
+tf.setBackend('cpu');
 
 const apiKey = process.env.API_KEY;
-const symbol = 'SPY'; // symbol for S&P 500 Inc.
+const symbol = 'SPY';
 
 function StockPrices() {
   const [prices, setPrices] = useState([]);
@@ -35,12 +37,12 @@ function StockPrices() {
           volume.push(volumeValue);
         }
 
-        const movingAveragePeriod = 20; 
-        const rsiPeriod = 14; 
-        const macdPeriod = 12; 
+        const movingAveragePeriod = 20;
+        const rsiPeriod = 14;
+        const macdPeriod = 12;
         const signalPeriod = 9;
-        const bollingerBandsPeriod = 20; 
-        const standardDeviations = 2; 
+        const bollingerBandsPeriod = 20;
+        const standardDeviations = 2;
 
         const sma = SMA.calculate({ period: movingAveragePeriod, values: closePrices });
         const rsi = RSI.calculate({ period: rsiPeriod, values: closePrices });
@@ -61,7 +63,7 @@ function StockPrices() {
 
         // Preprocess the data for input into the prediction model
         const processedData = preprocessData(pricesWithIndicators);
-        setPrices(processedData.reverse());
+        setPrices(processedData);
       })
       .catch((error) => {
         console.error(error);
@@ -98,18 +100,24 @@ function StockPrices() {
     }
   }, [prices, chartInitialized]);
 
-  // Preprocess the data for input into the prediction model
-  const preprocessData = (data) => {
-    // Extract the necessary features from the data
-    const inputFeatures = data.map((price) => [
-      price.sma,
-      price.rsi,
-      price.macd.histogram,
-      price.bollingerBands.lower,
-      price.bollingerBands.upper,
-    ]);
+  const makePredictions = async (model) => {
+    // Prepare the input data for prediction
+    const inputTensor = tf.tensor2d(prices.map((price) => price.inputFeatures));
+    const reshapedInput = inputTensor.reshape([inputTensor.shape[0], 1, inputTensor.shape[1]]);
 
-    // Extract the target variable (next day's price)
+    // Perform predictions
+    const predictions = model.predict(reshapedInput).dataSync();
+
+    // Dispose of the tensors to free up memory
+    inputTensor.dispose();
+    reshapedInput.dispose();
+    model.dispose();
+
+    // Perform any further processing or rendering based on the predictions
+    console.log('Predictions:', predictions);
+  };
+
+  const preprocessOutputLabels = (data) => {
     const outputLabels = data.map((price, index) => {
       if (index < data.length - 1) {
         return [data[index + 1].price];
@@ -117,44 +125,51 @@ function StockPrices() {
         return [null];
       }
     });
+    return outputLabels;
+  };
 
-    // Normalize the input features (e.g., using Min-Max scaling)
-    const normalizedInputFeatures = normalizeData(inputFeatures);
+  const preprocessInputFeatures = (data) => {
+    const inputFeatures = data.map((price) => [
+      price.sma,
+      price.rsi,
+      price.macd.histogram,
+      price.bollingerBands.lower,
+      price.bollingerBands.upper,
+    ]);
+    return inputFeatures;
+  };
 
-    // Return the preprocessed data
-    return {
-      inputFeatures: normalizedInputFeatures,
-      outputLabels,
+  useEffect(() => {
+    const train = async () => {
+      const inputFeatures = preprocessInputFeatures(prices);
+      const outputLabels = preprocessOutputLabels(prices);
+
+      // Convert the preprocessed data to tensors
+      const XTrain = tf.tensor2d(inputFeatures, [inputFeatures.length, inputFeatures[0].length]);
+      const yTrain = tf.tensor2d(outputLabels);
+
+      // Create the model
+      const model = createModel(XTrain.shape[1]);
+
+      // Define training parameters
+      const epochs = 50; // Set the number of training epochs
+      const batchSize = 32; // Set the batch size
+
+      // Train the model
+      await trainModel(model, XTrain, yTrain, epochs, batchSize);
+
+      // Dispose of the tensors to free up memory
+      XTrain.dispose();
+      yTrain.dispose();
+
+      // Make predictions with the trained model
+      makePredictions(model);
     };
-  };
 
-  // Normalize the data using Min-Max scaling
-  const normalizeData = (data) => {
-    const min = Math.min(...data.flat());
-    const max = Math.max(...data.flat());
-    const normalizedData = data.map((row) => row.map((value) => (value - min) / (max - min)));
-    return normalizedData;
-  };
-
-  // Make predictions using the model
-  const makePredictions = async () => {
-    // Prepare the input data for prediction
-    const inputTensor = tf.tensor2d(prices.map((price) => price.inputFeatures));
-    const reshapedInput = inputTensor.reshape([inputTensor.shape[0], 1, inputTensor.shape[1]]);
-
-    // Load the trained model from predictionModel.js
-    const model = await tf.loadLayersModel('path_to_your_trained_model/model.json');
-
-    // Make predictions
-    const predictions = model.predict(reshapedInput).dataSync();
-
-    // Perform any further processing or rendering based on the predictions
-
-    // Dispose of the tensors to free up memory
-    inputTensor.dispose();
-    reshapedInput.dispose();
-    model.dispose();
-  };
+    if (prices.length > 0) {
+      train();
+    }
+  }, [prices]);
 
   return (
     <div className="main">
@@ -162,7 +177,7 @@ function StockPrices() {
       <div>
         <canvas id="chart" ref={chartRef} style={{ height: '600px', width: '100%' }} />
       </div>
-      <button onClick={makePredictions}>Make Prediction</button>
+      <button onClick={() => makePredictions()}>Make Prediction</button>
     </div>
   );
 }
